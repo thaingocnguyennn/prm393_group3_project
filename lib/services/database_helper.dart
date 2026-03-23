@@ -275,4 +275,23 @@ class DatabaseHelper {
     );
     return (result.first['total'] as int?) ?? 0;
   }
+  Future<int> updateUser(User user) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      user.toMap(),
+      where: 'id = ?',
+      whereArgs: [user.id],
+    );
+  }
+
+  Future<int> updatePassword(String username, String password) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      {'password': password},
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+  }
 }
