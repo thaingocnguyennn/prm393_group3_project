@@ -9,7 +9,7 @@ import 'book_detail_screen.dart';
 import 'add_edit_book_screen.dart';
 import 'cart_screen.dart';
 import 'login_screen.dart';
-
+import 'profile_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -84,6 +84,15 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(_searchActive ? Icons.close : Icons.search),
             onPressed: _toggleSearch,
             tooltip: _searchActive ? 'Close search' : 'Search',
+          ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
           ),
           Consumer<CartProvider>(
             builder: (_, cart, __) => CartBadge(
