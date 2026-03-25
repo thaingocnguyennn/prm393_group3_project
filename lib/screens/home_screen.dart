@@ -18,6 +18,7 @@ import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'category_list_screen.dart';
 import 'add_edit_book_screen.dart' show isLocalImagePath;
+import 'voucher_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -126,7 +127,16 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             tooltip: 'Manage news',
           ),
-
+          IconButton(
+            icon: const Icon(Icons.local_offer_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const VoucherListScreen()),
+              );
+            },
+            tooltip: 'Manage vouchers',
+          ),
           Consumer<WishlistProvider>(
             builder: (_, wishlist, __) => WishlistBadge(
               count: wishlist.itemCount,
