@@ -24,8 +24,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -45,7 +46,9 @@ class DatabaseHelper {
         author TEXT NOT NULL,
         price REAL NOT NULL,
         image TEXT NOT NULL,
-        description TEXT NOT NULL
+        description TEXT NOT NULL,
+        categoryId INTEGER,
+        FOREIGN KEY (categoryId) REFERENCES categories(id)
       )
     ''');
 
@@ -81,9 +84,29 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 3) {
+      // Add categoryId column to existing books table
+      await db.execute('''
+        ALTER TABLE books ADD COLUMN categoryId INTEGER
+      ''');
+    }
   }
 
   Future<void> _insertSampleBooks(Database db) async {
+    // Insert sample categories first
+    final categories = [
+      {'name': 'Software Development', 'description': 'Books about software development and programming'},
+      {'name': 'Algorithms & Data Structures', 'description': 'Books about algorithms and data structures'},
+      {'name': 'Mobile Development', 'description': 'Books about mobile app development'},
+      {'name': 'Web Development', 'description': 'Books about web development'},
+    ];
+
+    final categoryIds = <int>[];
+    for (final cat in categories) {
+      final id = await db.insert('categories', cat);
+      categoryIds.add(id);
+    }
+
     final sampleBooks = [
       {
         'title': 'Clean Code',
@@ -93,6 +116,7 @@ class DatabaseHelper {
             'https://m.media-amazon.com/images/I/41xShlnTZTL._SX376_BO1,204,203,200_.jpg',
         'description':
             'A handbook of agile software craftsmanship. Even bad code can function. But if code isn\'t clean, it can bring a development organization to its knees.',
+        'categoryId': categoryIds[0],
       },
       {
         'title': 'The Pragmatic Programmer',
@@ -102,6 +126,7 @@ class DatabaseHelper {
             'https://m.media-amazon.com/images/I/51cUVaBWZzL._SX380_BO1,204,203,200_.jpg',
         'description':
             'Your journey to mastery. Examines the core process of software development - finding the right problem to solve, designing a solution, and implementing it.',
+        'categoryId': categoryIds[0],
       },
       {
         'title': 'Design Patterns',
@@ -111,6 +136,7 @@ class DatabaseHelper {
             'https://m.media-amazon.com/images/I/51szD9HC9pL._SX395_BO1,204,203,200_.jpg',
         'description':
             'Elements of Reusable Object-Oriented Software. Capturing a wealth of experience about the design of object-oriented software formatted in a structured and easy-to-read format.',
+        'categoryId': categoryIds[0],
       },
       {
         'title': 'Introduction to Algorithms',
@@ -120,6 +146,7 @@ class DatabaseHelper {
             'https://m.media-amazon.com/images/I/61Pgdn8Ys-L._AC_UL320_.jpg',
         'description':
             'A comprehensive introduction to the modern study of computer algorithms. It presents many algorithms and covers them in considerable depth, yet makes their design and analysis accessible to all levels of readers.',
+        'categoryId': categoryIds[1],
       },
       {
         'title': 'Flutter in Action',
@@ -129,6 +156,7 @@ class DatabaseHelper {
             'https://m.media-amazon.com/images/I/51Dc13JJVWL._SX397_BO1,204,203,200_.jpg',
         'description':
             'A hands-on guide to developing iOS and Android apps with Flutter. Teaches you to build production-quality apps that look great, perform quickly, and feel natural on any platform.',
+        'categoryId': categoryIds[2],
       },
       {
         'title': 'You Don\'t Know JS',
@@ -138,6 +166,7 @@ class DatabaseHelper {
             'https://m.media-amazon.com/images/I/51oSmDaAdFL._SX376_BO1,204,203,200_.jpg',
         'description':
             'A series that dives deep into the core mechanisms of the JavaScript language. Series covers scope & closures, this & object prototypes, types & grammar, async & performance, and ES6 & beyond.',
+        'categoryId': categoryIds[3],
       },
     ];
 
@@ -218,6 +247,39 @@ class DatabaseHelper {
     final db = await database;
     await db.delete('cart', where: 'bookId = ?', whereArgs: [id]);
     return await db.delete('books', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Get books by category ID
+  Future<List<Book>> getBooksByCategory(int categoryId) async {
+    final db = await database;
+    final maps = await db.query(
+      'books',
+      where: 'categoryId = ?',
+      whereArgs: [categoryId],
+      orderBy: 'id DESC',
+    );
+    return maps.map((m) => Book.fromMap(m)).toList();
+  }
+
+  // Get books with category name using JOIN
+  Future<List<Map<String, dynamic>>> getBooksWithCategory() async {
+    final db = await database;
+    final maps = await db.rawQuery('''
+      SELECT 
+        b.id,
+        b.title,
+        b.author,
+        b.price,
+        b.image,
+        b.description,
+        b.categoryId,
+        c.name as categoryName,
+        c.description as categoryDescription
+      FROM books b
+      LEFT JOIN categories c ON b.categoryId = c.id
+      ORDER BY b.id DESC
+    ''');
+    return maps;
   }
 
   // ─── CART OPERATIONS ──────────────────────────────────────────────────────
@@ -349,5 +411,13 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<void> deleteDatabaseFile() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'bookstore.db');
+
+    await deleteDatabase(path);
+    _database = null; // reset instance
   }
 }
