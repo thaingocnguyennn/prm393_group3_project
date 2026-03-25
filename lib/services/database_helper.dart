@@ -1,8 +1,10 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+
 import '../models/user.dart';
 import '../models/book.dart';
 import '../models/cart_item.dart';
+import '../models/category_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -17,17 +19,20 @@ class DatabaseHelper {
     return _database!;
   }
 
+  // Khởi tạo database
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'bookstore.db');
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
+  // Tạo database lần đầu
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE users (
@@ -49,6 +54,14 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE cart (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER NOT NULL,
@@ -62,6 +75,20 @@ class DatabaseHelper {
     await _insertSampleBooks(db);
   }
 
+  // Nâng cấp database khi tăng version
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL
+        )
+      ''');
+    }
+  }
+
+  // Dữ liệu mẫu cho books
   Future<void> _insertSampleBooks(Database db) async {
     final sampleBooks = [
       {
@@ -69,54 +96,54 @@ class DatabaseHelper {
         'author': 'Robert C. Martin',
         'price': 29.99,
         'image':
-            'https://m.media-amazon.com/images/I/41xShlnTZTL._SX376_BO1,204,203,200_.jpg',
+        'https://m.media-amazon.com/images/I/41xShlnTZTL._SX376_BO1,204,203,200_.jpg',
         'description':
-            'A handbook of agile software craftsmanship. Even bad code can function. But if code isn\'t clean, it can bring a development organization to its knees.',
+        'A handbook of agile software craftsmanship. Even bad code can function. But if code isn\'t clean, it can bring a development organization to its knees.',
       },
       {
         'title': 'The Pragmatic Programmer',
         'author': 'Andrew Hunt & David Thomas',
         'price': 34.99,
         'image':
-            'https://m.media-amazon.com/images/I/51cUVaBWZzL._SX380_BO1,204,203,200_.jpg',
+        'https://m.media-amazon.com/images/I/51cUVaBWZzL._SX380_BO1,204,203,200_.jpg',
         'description':
-            'Your journey to mastery. Examines the core process of software development - finding the right problem to solve, designing a solution, and implementing it.',
+        'Your journey to mastery. Examines the core process of software development - finding the right problem to solve, designing a solution, and implementing it.',
       },
       {
         'title': 'Design Patterns',
         'author': 'Gang of Four',
         'price': 44.99,
         'image':
-            'https://m.media-amazon.com/images/I/51szD9HC9pL._SX395_BO1,204,203,200_.jpg',
+        'https://m.media-amazon.com/images/I/51szD9HC9pL._SX395_BO1,204,203,200_.jpg',
         'description':
-            'Elements of Reusable Object-Oriented Software. Capturing a wealth of experience about the design of object-oriented software formatted in a structured and easy-to-read format.',
+        'Elements of Reusable Object-Oriented Software. Capturing a wealth of experience about the design of object-oriented software formatted in a structured and easy-to-read format.',
       },
       {
         'title': 'Introduction to Algorithms',
         'author': 'Cormen, Leiserson, Rivest & Stein',
         'price': 79.99,
         'image':
-            'https://m.media-amazon.com/images/I/61Pgdn8Ys-L._AC_UL320_.jpg',
+        'https://m.media-amazon.com/images/I/61Pgdn8Ys-L._AC_UL320_.jpg',
         'description':
-            'A comprehensive introduction to the modern study of computer algorithms. It presents many algorithms and covers them in considerable depth, yet makes their design and analysis accessible to all levels of readers.',
+        'A comprehensive introduction to the modern study of computer algorithms.',
       },
       {
         'title': 'Flutter in Action',
         'author': 'Eric Windmill',
         'price': 39.99,
         'image':
-            'https://m.media-amazon.com/images/I/51Dc13JJVWL._SX397_BO1,204,203,200_.jpg',
+        'https://m.media-amazon.com/images/I/51Dc13JJVWL._SX397_BO1,204,203,200_.jpg',
         'description':
-            'A hands-on guide to developing iOS and Android apps with Flutter. Teaches you to build production-quality apps that look great, perform quickly, and feel natural on any platform.',
+        'A hands-on guide to developing iOS and Android apps with Flutter.',
       },
       {
         'title': 'You Don\'t Know JS',
         'author': 'Kyle Simpson',
         'price': 24.99,
         'image':
-            'https://m.media-amazon.com/images/I/51oSmDaAdFL._SX376_BO1,204,203,200_.jpg',
+        'https://m.media-amazon.com/images/I/51oSmDaAdFL._SX376_BO1,204,203,200_.jpg',
         'description':
-            'A series that dives deep into the core mechanisms of the JavaScript language. Series covers scope & closures, this & object prototypes, types & grammar, async & performance, and ES6 & beyond.',
+        'A series that dives deep into the core mechanisms of the JavaScript language.',
       },
     ];
 
@@ -125,18 +152,25 @@ class DatabaseHelper {
     }
   }
 
-  // ─── USER OPERATIONS ──────────────────────────────────────────────────────
+  // ================= USER OPERATIONS =================
 
   Future<int> insertUser(User user) async {
     final db = await database;
-    return await db.insert('users', user.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.abort);
+    return await db.insert(
+      'users',
+      user.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
   }
 
   Future<User?> getUserByUsername(String username) async {
     final db = await database;
-    final maps =
-        await db.query('users', where: 'username = ?', whereArgs: [username]);
+    final maps = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+
     if (maps.isEmpty) return null;
     return User.fromMap(maps.first);
   }
@@ -148,11 +182,32 @@ class DatabaseHelper {
       where: 'username = ? AND password = ?',
       whereArgs: [username, password],
     );
+
     if (maps.isEmpty) return null;
     return User.fromMap(maps.first);
   }
 
-  // ─── BOOK OPERATIONS ──────────────────────────────────────────────────────
+  Future<int> updateUser(User user) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      user.toMap(),
+      where: 'id = ?',
+      whereArgs: [user.id],
+    );
+  }
+
+  Future<int> updatePassword(String username, String password) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      {'password': password},
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+  }
+
+  // ================= BOOK OPERATIONS =================
 
   Future<List<Book>> getAllBooks() async {
     final db = await database;
@@ -173,7 +228,12 @@ class DatabaseHelper {
 
   Future<Book?> getBookById(int id) async {
     final db = await database;
-    final maps = await db.query('books', where: 'id = ?', whereArgs: [id]);
+    final maps = await db.query(
+      'books',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
     if (maps.isEmpty) return null;
     return Book.fromMap(maps.first);
   }
@@ -199,7 +259,7 @@ class DatabaseHelper {
     return await db.delete('books', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ─── CART OPERATIONS ──────────────────────────────────────────────────────
+  // ================= CART OPERATIONS =================
 
   Future<List<CartItem>> getCartItems(int userId) async {
     final db = await database;
@@ -210,16 +270,19 @@ class DatabaseHelper {
     );
 
     final List<CartItem> items = [];
+
     for (final map in cartMaps) {
       final bookId = map['bookId'] as int;
       final book = await getBookById(bookId);
       items.add(CartItem.fromMap(map, book: book));
     }
+
     return items;
   }
 
   Future<void> addToCart(int userId, int bookId) async {
     final db = await database;
+
     final existing = await db.query(
       'cart',
       where: 'userId = ? AND bookId = ?',
@@ -245,6 +308,7 @@ class DatabaseHelper {
 
   Future<void> updateCartQuantity(int cartId, int quantity) async {
     final db = await database;
+
     if (quantity <= 0) {
       await db.delete('cart', where: 'id = ?', whereArgs: [cartId]);
     } else {
@@ -275,23 +339,42 @@ class DatabaseHelper {
     );
     return (result.first['total'] as int?) ?? 0;
   }
-  Future<int> updateUser(User user) async {
+
+  // ================= CATEGORY CRUD =================
+
+  Future<List<CategoryModel>> getAllCategories() async {
     final db = await database;
-    return await db.update(
-      'users',
-      user.toMap(),
-      where: 'id = ?',
-      whereArgs: [user.id],
+    final maps = await db.query(
+      'categories',
+      orderBy: 'id DESC',
+    );
+    return maps.map((map) => CategoryModel.fromMap(map)).toList();
+  }
+
+  Future<int> insertCategory(CategoryModel category) async {
+    final db = await database;
+    return await db.insert(
+      'categories',
+      category.toMap(),
     );
   }
 
-  Future<int> updatePassword(String username, String password) async {
+  Future<int> updateCategory(CategoryModel category) async {
     final db = await database;
     return await db.update(
-      'users',
-      {'password': password},
-      where: 'username = ?',
-      whereArgs: [username],
+      'categories',
+      category.toMap(),
+      where: 'id = ?',
+      whereArgs: [category.id],
+    );
+  }
+
+  Future<int> deleteCategory(int id) async {
+    final db = await database;
+    return await db.delete(
+      'categories',
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 }

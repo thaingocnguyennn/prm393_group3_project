@@ -10,6 +10,7 @@ import 'add_edit_book_screen.dart';
 import 'cart_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import 'category_list_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -94,6 +95,20 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+
+          IconButton(
+            icon: const Icon(Icons.category),
+            tooltip: 'Category',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CategoryListScreen(),
+                ),
+              );
+            },
+          ),
+
           Consumer<CartProvider>(
             builder: (_, cart, __) => CartBadge(
               count: cart.itemCount,

@@ -11,17 +11,44 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+
+  final _formKey = GlobalKey<FormState>();
+
   final TextEditingController _controller = TextEditingController();
+
   String? error;
 
   @override
   void initState() {
     super.initState();
+
+    // lấy username hiện tại
     final user = context.read<AuthProvider>().currentUser;
     _controller.text = user?.username ?? '';
   }
 
+  // validate username
+  String? _validateUsername(String? value) {
+
+    if (value == null || value.trim().isEmpty) {
+      return "Username cannot be empty";
+    }
+
+    if (value.length < 3) {
+      return "Username must be at least 3 characters";
+    }
+
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+      return "Only letters, numbers and _ allowed";
+    }
+
+    return null;
+  }
+
   Future<void> _save() async {
+
+    if (!_formKey.currentState!.validate()) return;
+
     final auth = context.read<AuthProvider>();
     final user = auth.currentUser;
 
@@ -29,14 +56,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final newUsername = _controller.text.trim();
 
-    // ❌ Username rỗng
-    if (newUsername.isEmpty) {
-      setState(() => error = "Username cannot be empty");
-      return;
-    }
-
     try {
-      // 🔥 check username có tồn tại chưa
+
+      // kiểm tra username đã tồn tại chưa
       final existing = await auth.getUserByUsername(newUsername);
 
       if (existing != null && existing.id != user.id) {
@@ -55,6 +77,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       Navigator.pop(context);
+
     } catch (e) {
       print("UPDATE ERROR: $e");
       setState(() => error = "Update failed");
@@ -69,37 +92,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Profile")),
+      appBar: AppBar(
+        title: const Text("Edit Profile"),
+      ),
+
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                labelText: "Username",
+
+        child: Form(
+          key: _formKey,
+
+          child: Column(
+            children: [
+
+              /// Username input
+              TextFormField(
+                controller: _controller,
+                decoration: const InputDecoration(
+                  labelText: "Username",
+                  border: OutlineInputBorder(),
+                ),
+                validator: _validateUsername,
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            if (error != null)
-              Text(
-                error!,
-                style: const TextStyle(color: Colors.red),
+              if (error != null)
+                Text(
+                  error!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+
+              const SizedBox(height: 20),
+
+              /// Save button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _save,
+                  child: const Text("Save"),
+                ),
               ),
-
-            const SizedBox(height: 20),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _save,
-                child: const Text("Save"),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
