@@ -5,6 +5,7 @@ import '../models/book.dart';
 import '../models/cart_item.dart';
 import '../models/category_model.dart';
 import '../models/news.dart';
+import '../models/voucher.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -25,7 +26,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -94,8 +95,20 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE vouchers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        description TEXT NOT NULL,
+        discountPercent REAL NOT NULL,
+        minOrderAmount REAL NOT NULL,
+        isActive INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+
     await _insertSampleBooks(db);
     await _insertSampleNews(db);
+    await _insertSampleVouchers(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -136,6 +149,18 @@ class DatabaseHelper {
           description TEXT NOT NULL,
           image TEXT NOT NULL,
           createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+    }
+    if (oldVersion < 6) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS vouchers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          code TEXT NOT NULL UNIQUE,
+          description TEXT NOT NULL,
+          discountPercent REAL NOT NULL,
+          minOrderAmount REAL NOT NULL,
+          isActive INTEGER NOT NULL DEFAULT 1
         )
       ''');
     }
@@ -529,6 +554,45 @@ class DatabaseHelper {
     return await db.delete('news', where: 'id = ?', whereArgs: [id]);
   }
 
+  // ─── VOUCHER OPERATIONS ──────────────────────────────────────────────────────
+
+  Future<List<Voucher>> getAllVouchers() async {
+    final db = await database;
+    final maps = await db.query(
+      'vouchers',
+      orderBy: 'isActive DESC, id DESC',
+    );
+    return maps.map((map) => Voucher.fromMap(map)).toList();
+  }
+
+  Future<int> insertVoucher(Voucher voucher) async {
+    final db = await database;
+    return await db.insert(
+      'vouchers',
+      voucher.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+  }
+
+  Future<int> updateVoucher(Voucher voucher) async {
+    final db = await database;
+    return await db.update(
+      'vouchers',
+      voucher.toMap(),
+      where: 'id = ?',
+      whereArgs: [voucher.id],
+    );
+  }
+
+  Future<int> deleteVoucher(int id) async {
+    final db = await database;
+    return await db.delete(
+      'vouchers',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // ─── WISHLIST OPERATIONS ─────────────────────────────────────────────────────
 
   Future<List<Book>> getWishlistBooks(int userId) async {
@@ -589,5 +653,35 @@ class DatabaseHelper {
 
     await deleteDatabase(path);
     _database = null; // reset instance
+  }
+
+  Future<void> _insertSampleVouchers(Database db) async {
+    final sampleVouchers = [
+      {
+        'code': 'WELCOME10',
+        'description': 'Get 10% off for orders from \$20',
+        'discountPercent': 10.0,
+        'minOrderAmount': 20.0,
+        'isActive': 1,
+      },
+      {
+        'code': 'SAVE15',
+        'description': 'Get 15% off for orders from \$50',
+        'discountPercent': 15.0,
+        'minOrderAmount': 50.0,
+        'isActive': 1,
+      },
+      {
+        'code': 'VIP20',
+        'description': 'Get 20% off for orders from \$100',
+        'discountPercent': 20.0,
+        'minOrderAmount': 100.0,
+        'isActive': 1,
+      },
+    ];
+
+    for (final item in sampleVouchers) {
+      await db.insert('vouchers', item);
+    }
   }
 }

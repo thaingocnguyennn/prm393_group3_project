@@ -10,6 +10,7 @@ import 'screens/home_screen.dart';
 import 'utils/app_theme.dart';
 import 'providers/category_provider.dart';
 import 'services/database_helper.dart';
+import 'providers/voucher_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,7 @@ class BookStoreApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WishlistProvider()),
         ChangeNotifierProvider(create: (_) => NewsProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
+        ChangeNotifierProvider(create: (_) => VoucherProvider()),
       ],
       child: MaterialApp(
         title: 'BookStore',
@@ -63,6 +65,7 @@ class _AppEntryState extends State<_AppEntry> {
     await auth.tryAutoLogin();
 
     if (auth.isLoggedIn) {
+      final vouchers = context.read<VoucherProvider>();
       final cart = context.read<CartProvider>();
       final books = context.read<BookProvider>();
       final wishlist = context.read<WishlistProvider>();
@@ -72,6 +75,7 @@ class _AppEntryState extends State<_AppEntry> {
         books.loadBooks(),
         wishlist.setUserAndLoad(auth.currentUser!.id!),
         news.loadNews(),
+        vouchers.loadVouchers(),
       ]);
     }
 
