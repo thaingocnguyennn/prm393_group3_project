@@ -6,6 +6,7 @@ import '../models/book.dart';
 import '../models/cart_item.dart';
 import '../models/category_model.dart';
 
+import '../models/voucher.dart';
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
@@ -35,23 +36,23 @@ class DatabaseHelper {
   // Tạo database lần đầu
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL
-      )
-    ''');
+    CREATE TABLE users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL
+    )
+  ''');
 
     await db.execute('''
-      CREATE TABLE books (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        author TEXT NOT NULL,
-        price REAL NOT NULL,
-        image TEXT NOT NULL,
-        description TEXT NOT NULL
-      )
-    ''');
+    CREATE TABLE books (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      author TEXT NOT NULL,
+      price REAL NOT NULL,
+      image TEXT NOT NULL,
+      description TEXT NOT NULL
+    )
+  ''');
 
     await db.execute('''
       CREATE TABLE categories (
@@ -71,8 +72,27 @@ class DatabaseHelper {
         FOREIGN KEY (bookId) REFERENCES books(id)
       )
     ''');
+    CREATE TABLE cart (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      bookId INTEGER NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (userId) REFERENCES users(id),
+      FOREIGN KEY (bookId) REFERENCES books(id)
+    )
+  ''');
+
+    await _createVoucherTable(db);
 
     await _insertSampleBooks(db);
+    await _insertSampleVouchers(db);
+  }
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // Nâng từ version cũ lên version 2 thì tạo bảng voucher
+    if (oldVersion < 2) {
+      await _createVoucherTable(db);
+      await _insertSampleVouchers(db);
+    }
   }
 
   // Nâng cấp database khi tăng version
@@ -89,6 +109,47 @@ class DatabaseHelper {
   }
 
   // Dữ liệu mẫu cho books
+  Future<void> _createVoucherTable(Database db) async {
+    await db.execute('''
+    CREATE TABLE vouchers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      discountPercent REAL NOT NULL,
+      minOrderAmount REAL NOT NULL,
+      isActive INTEGER NOT NULL DEFAULT 1
+    )
+  ''');
+  }
+  Future<void> _insertSampleVouchers(Database db) async {
+    final sampleVouchers = [
+      {
+        'code': 'WELCOME10',
+        'description': 'Giảm 10% cho đơn hàng đầu tiên',
+        'discountPercent': 10.0,
+        'minOrderAmount': 20.0,
+        'isActive': 1,
+      },
+      {
+        'code': 'SAVE15',
+        'description': 'Giảm 15% cho đơn từ 50 đô',
+        'discountPercent': 15.0,
+        'minOrderAmount': 50.0,
+        'isActive': 1,
+      },
+      {
+        'code': 'VIP20',
+        'description': 'Giảm 20% cho đơn từ 100 đô',
+        'discountPercent': 20.0,
+        'minOrderAmount': 100.0,
+        'isActive': 1,
+      },
+    ];
+
+    for (final voucher in sampleVouchers) {
+      await db.insert('vouchers', voucher);
+    }
+  }
   Future<void> _insertSampleBooks(Database db) async {
     final sampleBooks = [
       {
@@ -373,6 +434,45 @@ class DatabaseHelper {
     final db = await database;
     return await db.delete(
       'categories',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+}
+  // ─── VOUCHER OPERATIONS ──────────────────────────────────────────────────────
+
+  Future<List<Voucher>> getAllVouchers() async {
+    final db = await database;
+    final maps = await db.query(
+      'vouchers',
+      orderBy: 'isActive DESC, id DESC',
+    );
+    return maps.map((map) => Voucher.fromMap(map)).toList();
+  }
+
+  Future<int> insertVoucher(Voucher voucher) async {
+    final db = await database;
+    return await db.insert(
+      'vouchers',
+      voucher.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+  }
+
+  Future<int> updateVoucher(Voucher voucher) async {
+    final db = await database;
+    return await db.update(
+      'vouchers',
+      voucher.toMap(),
+      where: 'id = ?',
+      whereArgs: [voucher.id],
+    );
+  }
+
+  Future<int> deleteVoucher(int id) async {
+    final db = await database;
+    return await db.delete(
+      'vouchers',
       where: 'id = ?',
       whereArgs: [id],
     );

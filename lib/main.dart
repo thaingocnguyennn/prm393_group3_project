@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/book_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/voucher_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'utils/app_theme.dart';
@@ -24,6 +25,7 @@ class BookStoreApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BookProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
+        ChangeNotifierProvider(create: (_) => VoucherProvider()),
       ],
       child: MaterialApp(
         title: 'BookStore',
@@ -58,9 +60,12 @@ class _AppEntryState extends State<_AppEntry> {
     if (auth.isLoggedIn) {
       final cart = context.read<CartProvider>();
       final books = context.read<BookProvider>();
+      final vouchers = context.read<VoucherProvider>();
+
       await Future.wait([
         cart.loadCart(auth.currentUser!.id!),
         books.loadBooks(),
+        vouchers.loadVouchers(),
       ]);
     }
 
@@ -77,8 +82,7 @@ class _AppEntryState extends State<_AppEntry> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.menu_book_rounded,
-                  size: 80, color: AppTheme.primary),
+              Icon(Icons.menu_book_rounded, size: 80, color: AppTheme.primary),
               SizedBox(height: 20),
               CircularProgressIndicator(),
               SizedBox(height: 12),
