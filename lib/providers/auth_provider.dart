@@ -17,11 +17,15 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> tryAutoLogin() async {
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getInt('userId');
     final username = prefs.getString('username');
-    if (userId != null && username != null) {
-      _currentUser = User(id: userId, username: username, password: '');
-      notifyListeners();
+
+    if (username != null) {
+      final user = await _db.getUserByUsername(username); // 🔥 lấy lại từ DB
+
+      if (user != null) {
+        _currentUser = user; // ✅ có password luôn
+        notifyListeners();
+      }
     }
   }
 
@@ -84,7 +88,26 @@ class AuthProvider with ChangeNotifier {
     await prefs.setInt('userId', user.id!);
     await prefs.setString('username', user.username);
   }
+  Future<void> updateUser(User user) async {
+    await _db.updateUser(user);
+    _currentUser = user;
+    await _saveSession(user);
+    notifyListeners();
+  }
 
+  Future<void> changePassword(String newPassword) async {
+    if (_currentUser == null) return;
+
+    await _db.updatePassword(_currentUser!.username, newPassword);
+
+    _currentUser =
+        _currentUser!.copyWith(password: newPassword);
+
+    notifyListeners();
+  }
+  Future<User?> getUserByUsername(String username) async {
+    return await _db.getUserByUsername(username);
+  }
   void clearError() {
     _errorMessage = null;
     notifyListeners();
