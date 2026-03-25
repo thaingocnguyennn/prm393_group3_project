@@ -4,6 +4,7 @@ import 'providers/auth_provider.dart';
 import 'providers/book_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/wishlist_provider.dart';
+import 'providers/news_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'utils/app_theme.dart';
@@ -28,6 +29,7 @@ class BookStoreApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BookProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => WishlistProvider()),
+        ChangeNotifierProvider(create: (_) => NewsProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
       ],
       child: MaterialApp(
@@ -64,10 +66,12 @@ class _AppEntryState extends State<_AppEntry> {
       final cart = context.read<CartProvider>();
       final books = context.read<BookProvider>();
       final wishlist = context.read<WishlistProvider>();
+      final news = context.read<NewsProvider>();
       await Future.wait([
         cart.loadCart(auth.currentUser!.id!),
         books.loadBooks(),
         wishlist.setUserAndLoad(auth.currentUser!.id!),
+        news.loadNews(),
       ]);
     }
 

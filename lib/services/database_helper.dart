@@ -4,6 +4,7 @@ import '../models/user.dart';
 import '../models/book.dart';
 import '../models/cart_item.dart';
 import '../models/category_model.dart';
+import '../models/news.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -24,7 +25,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -83,7 +84,18 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE news (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        image TEXT NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
     await _insertSampleBooks(db);
+    await _insertSampleNews(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -113,6 +125,17 @@ class DatabaseHelper {
           UNIQUE(userId, bookId),
           FOREIGN KEY (userId) REFERENCES users(id),
           FOREIGN KEY (bookId) REFERENCES books(id)
+        )
+      ''');
+    }
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS news (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          image TEXT NOT NULL,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       ''');
     }
@@ -198,6 +221,22 @@ class DatabaseHelper {
 
     for (final book in sampleBooks) {
       await db.insert('books', book);
+    }
+  }
+
+  Future<void> _insertSampleNews(Database db) async {
+    final sampleNews = [
+      {
+        'title': 'Welcome to BookStore News',
+        'description':
+            'This is the latest place to share bookstore announcements, new arrivals, and important updates.',
+        'image':
+            'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80',
+      },
+    ];
+
+    for (final item in sampleNews) {
+      await db.insert('news', item);
     }
   }
 
@@ -437,6 +476,57 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // ─── NEWS OPERATIONS ──────────────────────────────────────────────────────
+
+  Future<List<News>> getAllNews() async {
+    final db = await database;
+    final maps = await db.rawQuery('''
+      SELECT * FROM news
+      ORDER BY datetime(createdAt) DESC, id DESC
+    ''');
+    return maps.map((m) => News.fromMap(m)).toList();
+  }
+
+  Future<News?> getNewestNews() async {
+    final db = await database;
+    final maps = await db.rawQuery('''
+      SELECT * FROM news
+      ORDER BY datetime(createdAt) DESC, id DESC
+      LIMIT 1
+    ''');
+    if (maps.isEmpty) return null;
+    return News.fromMap(maps.first);
+  }
+
+  Future<News?> getNewsById(int id) async {
+    final db = await database;
+    final maps = await db.query('news', where: 'id = ?', whereArgs: [id]);
+    if (maps.isEmpty) return null;
+    return News.fromMap(maps.first);
+  }
+
+  Future<int> insertNews(News news) async {
+    final db = await database;
+    final map = news.toMap()..remove('id')..remove('createdAt');
+    return await db.insert('news', map);
+  }
+
+  Future<int> updateNews(News news) async {
+    final db = await database;
+    final map = news.toMap()..remove('createdAt');
+    return await db.update(
+      'news',
+      map,
+      where: 'id = ?',
+      whereArgs: [news.id],
+    );
+  }
+
+  Future<int> deleteNews(int id) async {
+    final db = await database;
+    return await db.delete('news', where: 'id = ?', whereArgs: [id]);
   }
 
   // ─── WISHLIST OPERATIONS ─────────────────────────────────────────────────────

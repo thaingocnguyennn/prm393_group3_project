@@ -1,18 +1,23 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/book_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/wishlist_provider.dart';
+import '../providers/news_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'book_detail_screen.dart';
 import 'add_edit_book_screen.dart';
 import 'cart_screen.dart';
 import 'wishlist_screen.dart';
+import 'news_detail_screen.dart';
+import 'news_list_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'category_list_screen.dart';
+import 'add_edit_book_screen.dart' show isLocalImagePath;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<BookProvider>().loadBooks();
+      context.read<NewsProvider>().loadNews();
     });
   }
 
@@ -110,6 +116,16 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.newspaper_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NewsListScreen()),
+              );
+            },
+            tooltip: 'Manage news',
+          ),
 
           Consumer<WishlistProvider>(
             builder: (_, wishlist, __) => WishlistBadge(
@@ -161,15 +177,16 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
       ),
-      body: Consumer<BookProvider>(
-        builder: (context, bookProvider, _) {
-          if (bookProvider.isLoading && bookProvider.books.isEmpty) {
+      body: Consumer2<BookProvider, NewsProvider>(
+        builder: (context, bookProvider, newsProvider, _) {
+          if (bookProvider.isLoading && bookProvider.books.isEmpty && newsProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
           final books = bookProvider.books;
+          final newestNews = newsProvider.newestNews;
 
-          if (books.isEmpty) {
+          if (books.isEmpty && newestNews == null) {
             return EmptyState(
               icon: Icons.library_books_outlined,
               title: bookProvider.searchQuery.isEmpty
@@ -182,37 +199,143 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: () => bookProvider.loadBooks(),
+            onRefresh: () async {
+              await Future.wait([
+                bookProvider.loadBooks(),
+                newsProvider.loadNews(),
+              ]);
+            },
             child: Consumer<WishlistProvider>(
               builder: (context, wishlistProvider, _) {
-                return ListView.builder(
+                return ListView(
                   padding: const EdgeInsets.only(bottom: 100, top: 8),
-                  itemCount: books.length,
-                  itemBuilder: (context, index) {
-                    final book = books[index];
-                    final isInWishlist = wishlistProvider.isInWishlist(book.id!);
-                    return BookCard(
-                      key: ValueKey(book.id),
-                      book: book,
-                      isInWishlist: isInWishlist,
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BookDetailScreen(book: book),
-                          ),
-                        );
-                      },
-                      onWishlistToggle: () {
-                        wishlistProvider.toggleWishlist(book.id!, book);
-                      },
-                    );
-                  },
+                  children: [
+                    if (newestNews != null)
+                      _NewestNewsCard(
+                        title: newestNews.title,
+                        imageUrl: newestNews.image,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NewsDetailScreen(news: newestNews),
+                            ),
+                          );
+                        },
+                      ),
+                    ...books.map((book) {
+                      final isInWishlist = wishlistProvider.isInWishlist(book.id!);
+                      return BookCard(
+                        key: ValueKey(book.id),
+                        book: book,
+                        isInWishlist: isInWishlist,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookDetailScreen(book: book),
+                            ),
+                          );
+                        },
+                        onWishlistToggle: () {
+                          wishlistProvider.toggleWishlist(book.id!, book);
+                        },
+                      );
+                    }),
+                  ],
                 );
               },
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _NewestNewsCard extends StatelessWidget {
+  final String title;
+  final String imageUrl;
+  final VoidCallback onTap;
+
+  const _NewestNewsCard({
+    required this.title,
+    required this.imageUrl,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: isLocalImagePath(imageUrl)
+                    ? Image.file(
+                        File(imageUrl),
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 68,
+                          height: 68,
+                          color: AppTheme.divider,
+                          child: const Icon(Icons.broken_image_outlined,
+                              color: AppTheme.textGrey),
+                        ),
+                      )
+                    : Image.network(
+                        imageUrl,
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 68,
+                          height: 68,
+                          color: AppTheme.divider,
+                          child: const Icon(Icons.broken_image_outlined,
+                              color: AppTheme.textGrey),
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Newest News',
+                      style: TextStyle(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textDark,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppTheme.textGrey),
+            ],
+          ),
+        ),
       ),
     );
   }
