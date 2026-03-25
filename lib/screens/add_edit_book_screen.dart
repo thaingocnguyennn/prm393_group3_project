@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../models/book.dart';
+import '../models/category_model.dart';
 import '../providers/book_provider.dart';
+import '../services/database_helper.dart';
 import '../utils/app_theme.dart';
 import '../utils/validators.dart';
 import '../widgets/common_widgets.dart';
@@ -32,6 +34,11 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
 
   /// Holds either a local absolute file path or a remote URL.
   String _imagePath = '';
+  
+  /// Category management
+  List<CategoryModel> _categories = [];
+  int? _selectedCategoryId;
+  bool _categoriesLoading = true;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -48,6 +55,31 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
     _descriptionController =
         TextEditingController(text: book?.description ?? '');
     _imagePath = book?.image ?? '';
+    _selectedCategoryId = book?.categoryId;
+    
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await DatabaseHelper().getAllCategories();
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _categoriesLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _categoriesLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load categories: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -185,6 +217,16 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
       return;
     }
 
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a category.'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      return;
+    }
+
     final bookProvider = context.read<BookProvider>();
 
     final book = Book(
@@ -194,6 +236,7 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
       price: double.parse(_priceController.text.trim()),
       image: _imagePath,
       description: _descriptionController.text.trim(),
+      categoryId: _selectedCategoryId,
     );
 
     final bool success = widget.isEditing
@@ -276,6 +319,90 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                           decimal: true),
                       validator: Validators.price,
                     ),
+                    const SizedBox(height: 16),
+                    // Category Dropdown
+                    if (_categoriesLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: CircularProgressIndicator(),
+                      )
+                    else if (_categories.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.error.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.error),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.warning_outlined,
+                                color: AppTheme.error, size: 32),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'No categories available',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.error,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Please create a category first',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      DropdownButtonFormField<int?>(
+                        value: _selectedCategoryId,
+                        hint: const Text('Select Category'),
+                        isExpanded: true,
+                        items: _categories.map((category) {
+                          return DropdownMenuItem<int?>(
+                            value: category.id,
+                            child: Text(category.name),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() => _selectedCategoryId = value);
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Category',
+                          hintText: 'Select a category',
+                          prefixIcon: const Icon(Icons.category_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppTheme.divider,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppTheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Please select a category';
+                          }
+                          return null;
+                        },
+                      ),
                     const SizedBox(height: 16),
                     AppTextField(
                       controller: _descriptionController,

@@ -5,6 +5,7 @@ class Book {
   final double price;
   final String image;
   final String description;
+  final int? categoryId;
 
   Book({
     this.id,
@@ -13,6 +14,7 @@ class Book {
     required this.price,
     required this.image,
     required this.description,
+    this.categoryId,
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +25,7 @@ class Book {
       'price': price,
       'image': image,
       'description': description,
+      'categoryId': categoryId,
     };
   }
 
@@ -33,6 +36,7 @@ class Book {
       author: map['author'] as String,
       price: (map['price'] as num).toDouble(),
       image: map['image'] as String,
+      categoryId: map['categoryId'] as int?,
       description: map['description'] as String,
     );
   }
@@ -44,6 +48,7 @@ class Book {
     double? price,
     String? image,
     String? description,
+    int? categoryId,
   }) {
     return Book(
       id: id ?? this.id,
@@ -52,6 +57,7 @@ class Book {
       price: price ?? this.price,
       image: image ?? this.image,
       description: description ?? this.description,
+      categoryId: categoryId ?? this.categoryId,
     );
   }
 

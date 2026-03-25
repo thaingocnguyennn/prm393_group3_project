@@ -7,9 +7,12 @@ import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'utils/app_theme.dart';
 import 'providers/category_provider.dart';
+import 'services/database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 🔥 RESET DATABASE (chỉ dùng khi test)
+  await DatabaseHelper().deleteDatabaseFile();
   runApp(const BookStoreApp());
 }
 
