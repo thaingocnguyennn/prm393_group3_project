@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/wishlist_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/validators.dart';
 import '../widgets/common_widgets.dart';
@@ -35,6 +36,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final auth = context.read<AuthProvider>();
     final cart = context.read<CartProvider>();
+    final wishlist = context.read<WishlistProvider>();
 
     final success = await auth.register(
       _usernameController.text.trim(),
@@ -44,7 +46,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (success) {
-      await cart.loadCart(auth.currentUser!.id!);
+      await Future.wait([
+        cart.loadCart(auth.currentUser!.id!),
+        wishlist.setUserAndLoad(auth.currentUser!.id!),
+      ]);
+      if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
         (route) => false,

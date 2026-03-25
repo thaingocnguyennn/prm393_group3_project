@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/book_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/wishlist_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'book_detail_screen.dart';
 import 'add_edit_book_screen.dart';
 import 'cart_screen.dart';
+import 'wishlist_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'category_list_screen.dart';
@@ -109,6 +111,16 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
 
+          Consumer<WishlistProvider>(
+            builder: (_, wishlist, __) => WishlistBadge(
+              count: wishlist.itemCount,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WishlistScreen()),
+              ),
+            ),
+          ),
+
           Consumer<CartProvider>(
             builder: (_, cart, __) => CartBadge(
               count: cart.itemCount,
@@ -171,20 +183,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return RefreshIndicator(
             onRefresh: () => bookProvider.loadBooks(),
-            child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 100, top: 8),
-              itemCount: books.length,
-              itemBuilder: (context, index) {
-                final book = books[index];
-                return BookCard(
-                  key: ValueKey(book.id),
-                  book: book,
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BookDetailScreen(book: book),
-                      ),
+            child: Consumer<WishlistProvider>(
+              builder: (context, wishlistProvider, _) {
+                return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 100, top: 8),
+                  itemCount: books.length,
+                  itemBuilder: (context, index) {
+                    final book = books[index];
+                    final isInWishlist = wishlistProvider.isInWishlist(book.id!);
+                    return BookCard(
+                      key: ValueKey(book.id),
+                      book: book,
+                      isInWishlist: isInWishlist,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookDetailScreen(book: book),
+                          ),
+                        );
+                      },
+                      onWishlistToggle: () {
+                        wishlistProvider.toggleWishlist(book.id!, book);
+                      },
                     );
                   },
                 );
