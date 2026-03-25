@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import '../models/user.dart';
 import '../models/book.dart';
 import '../models/cart_item.dart';
+import '../models/category_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -23,7 +24,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
     );
   }
@@ -49,6 +50,14 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE cart (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER NOT NULL,
@@ -60,6 +69,18 @@ class DatabaseHelper {
     ''');
 
     await _insertSampleBooks(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   Future<void> _insertSampleBooks(Database db) async {
@@ -292,6 +313,41 @@ class DatabaseHelper {
       {'password': password},
       where: 'username = ?',
       whereArgs: [username],
+    );
+  }
+  Future<List<CategoryModel>> getAllCategories() async {
+    final db = await database;
+    final maps = await db.query(
+      'categories',
+      orderBy: 'id DESC',
+    );
+    return maps.map((map) => CategoryModel.fromMap(map)).toList();
+  }
+
+  Future<int> insertCategory(CategoryModel category) async {
+    final db = await database;
+    return await db.insert(
+      'categories',
+      category.toMap(),
+    );
+  }
+
+  Future<int> updateCategory(CategoryModel category) async {
+    final db = await database;
+    return await db.update(
+      'categories',
+      category.toMap(),
+      where: 'id = ?',
+      whereArgs: [category.id],
+    );
+  }
+
+  Future<int> deleteCategory(int id) async {
+    final db = await database;
+    return await db.delete(
+      'categories',
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 }
