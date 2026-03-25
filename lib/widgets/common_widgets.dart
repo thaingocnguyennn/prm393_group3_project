@@ -11,12 +11,16 @@ class BookCard extends StatelessWidget {
   final Book book;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onWishlistToggle;
+  final bool isInWishlist;
 
   const BookCard({
     super.key,
     required this.book,
     required this.onTap,
     this.onDelete,
+    this.onWishlistToggle,
+    this.isInWishlist = false,
   });
 
   @override
@@ -74,9 +78,27 @@ class BookCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: AppTheme.textGrey,
+              Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (onWishlistToggle != null)
+                    IconButton(
+                      icon: Icon(
+                        isInWishlist ? Icons.favorite : Icons.favorite_border,
+                        color: isInWishlist ? AppTheme.error : AppTheme.textGrey,
+                        size: 24,
+                      ),
+                      onPressed: onWishlistToggle,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: isInWishlist ? 'Remove from wishlist' : 'Add to wishlist',
+                    )
+                  else
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppTheme.textGrey,
+                    ),
+                ],
               ),
             ],
           ),
@@ -373,6 +395,50 @@ class CartBadge extends StatelessWidget {
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: AppTheme.accent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              child: Text(
+                count > 99 ? '99+' : count.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ─── WISHLIST BADGE ──────────────────────────────────────────────────────────
+
+class WishlistBadge extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const WishlistBadge({super.key, required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.topRight,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.favorite_border),
+          onPressed: onTap,
+        ),
+        if (count > 0)
+          Positioned(
+            right: 4,
+            top: 4,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: AppTheme.error,
                 borderRadius: BorderRadius.circular(10),
               ),
               constraints: const BoxConstraints(minWidth: 18, minHeight: 18),

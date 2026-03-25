@@ -24,7 +24,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -71,6 +71,18 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE wishlist (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
+        bookId INTEGER NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(userId, bookId),
+        FOREIGN KEY (userId) REFERENCES users(id),
+        FOREIGN KEY (bookId) REFERENCES books(id)
+      )
+    ''');
+
     await _insertSampleBooks(db);
   }
 
@@ -88,6 +100,20 @@ class DatabaseHelper {
       // Add categoryId column to existing books table
       await db.execute('''
         ALTER TABLE books ADD COLUMN categoryId INTEGER
+      ''');
+    }
+    if (oldVersion < 4) {
+      // Add wishlist table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS wishlist (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId INTEGER NOT NULL,
+          bookId INTEGER NOT NULL,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(userId, bookId),
+          FOREIGN KEY (userId) REFERENCES users(id),
+          FOREIGN KEY (bookId) REFERENCES books(id)
+        )
       ''');
     }
   }
@@ -411,6 +437,60 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // ─── WISHLIST OPERATIONS ─────────────────────────────────────────────────────
+
+  Future<List<Book>> getWishlistBooks(int userId) async {
+    final db = await database;
+    final maps = await db.rawQuery('''
+      SELECT b.* FROM books b
+      INNER JOIN wishlist w ON b.id = w.bookId
+      WHERE w.userId = ?
+      ORDER BY w.createdAt DESC
+    ''', [userId]);
+    return maps.map((m) => Book.fromMap(m)).toList();
+  }
+
+  Future<bool> isBookInWishlist(int userId, int bookId) async {
+    final db = await database;
+    final maps = await db.query(
+      'wishlist',
+      where: 'userId = ? AND bookId = ?',
+      whereArgs: [userId, bookId],
+    );
+    return maps.isNotEmpty;
+  }
+
+  Future<void> addToWishlist(int userId, int bookId) async {
+    final db = await database;
+    try {
+      await db.insert('wishlist', {
+        'userId': userId,
+        'bookId': bookId,
+      });
+    } catch (e) {
+      // UNIQUE constraint violation means it's already in wishlist
+      // Silent fail is acceptable here
+    }
+  }
+
+  Future<void> removeFromWishlist(int userId, int bookId) async {
+    final db = await database;
+    await db.delete(
+      'wishlist',
+      where: 'userId = ? AND bookId = ?',
+      whereArgs: [userId, bookId],
+    );
+  }
+
+  Future<int> getWishlistCount(int userId) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM wishlist WHERE userId = ?',
+      [userId],
+    );
+    return (result.first['count'] as int?) ?? 0;
   }
 
   Future<void> deleteDatabaseFile() async {
