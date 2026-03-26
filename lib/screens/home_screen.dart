@@ -19,7 +19,7 @@ import 'profile_screen.dart';
 import 'category_list_screen.dart';
 import 'add_edit_book_screen.dart' show isLocalImagePath;
 import 'voucher_list_screen.dart';
-
+import 'order_history_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -71,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 50,
         title: _searchActive
             ? TextField(
                 controller: _searchController,
@@ -104,39 +105,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
+            tooltip: 'Profile',
           ),
 
-          IconButton(
-            icon: const Icon(Icons.category),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CategoryListScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.newspaper_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NewsListScreen()),
-              );
-            },
-            tooltip: 'Manage news',
-          ),
-          IconButton(
-            icon: const Icon(Icons.local_offer_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const VoucherListScreen()),
-              );
-            },
-            tooltip: 'Manage vouchers',
-          ),
           Consumer<WishlistProvider>(
             builder: (_, wishlist, __) => WishlistBadge(
               count: wishlist.itemCount,
@@ -156,15 +127,84 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+
           PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'Menu',
             onSelected: (value) {
-              if (value == 'logout') _logout();
+              if (value == 'category') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CategoryListScreen(),
+                  ),
+                );
+              } else if (value == 'news') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NewsListScreen()),
+                );
+              } else if (value == 'voucher') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VoucherListScreen()),
+                );
+              } else if (value == 'orders') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const OrderHistoryScreen(),
+                  ),
+                );
+              } else if (value == 'logout') {
+                _logout();
+              }
             },
-            itemBuilder: (_) => [
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'category',
+                child: Row(
+                  children: [
+                    Icon(Icons.category),
+                    SizedBox(width: 8),
+                    Text('Category'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'news',
+                child: Row(
+                  children: [
+                    Icon(Icons.newspaper_outlined),
+                    SizedBox(width: 8),
+                    Text('News'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'voucher',
+                child: Row(
+                  children: [
+                    Icon(Icons.local_offer_outlined),
+                    SizedBox(width: 8),
+                    Text('Voucher'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'orders',
+                child: Row(
+                  children: [
+                    Icon(Icons.history),
+                    SizedBox(width: 8),
+                    Text('Order History'),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'logout',
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.logout, color: AppTheme.error),
                     SizedBox(width: 8),
                     Text('Logout'),

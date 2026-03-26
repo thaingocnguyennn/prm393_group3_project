@@ -6,7 +6,9 @@ import '../providers/voucher_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'home_screen.dart';
-
+import '../services/database_helper.dart';
+import 'order_history_screen.dart';
+import '../models/order_history_item.dart';
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -26,6 +28,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<VoucherProvider>().loadVouchers();
+      // xóa snackbar cũ đang nổi từ màn hình trước
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
     });
   }
 
@@ -179,7 +184,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cart = context.read<CartProvider>();
     final voucherProvider = context.read<VoucherProvider>();
     final selectedVoucher = voucherProvider.selectedVoucher;
-
+    final finalTotal = voucherProvider.getFinalTotal(cart.totalPrice);
     if (selectedVoucher != null) {
       if (!selectedVoucher.isActive) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -226,8 +231,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     Navigator.pop(context); // close processing dialog
 
     if (success) {
+      final db = DatabaseHelper();
+
+      final orderId = await db.insertOrder(
+        totalPrice: finalTotal,
+        fullName: _nameController.text.trim(),
+        address: _addressController.text.trim(),
+        paymentMethod: _paymentMethod,
+        cardNumber: _paymentMethod == 'Cash on Delivery'
+            ? ''
+            : _cardController.text.trim(),
+      );
+
+      for (final item in cart.items) {
+        await db.insertOrderItem(
+          OrderHistoryItem(
+            orderId: orderId,
+            bookId: item.book?.id ?? 0,
+            title: item.book?.title ?? 'Book',
+            price: item.book?.price ?? 0,
+            quantity: item.quantity,
+            image: item.book?.image ?? '',
+          ),
+        );
+      }
+
       voucherProvider.clearSelectedVoucher();
       _showSuccessDialog();
+
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -274,18 +305,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ],
         ),
         actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-                (route) => false,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4CAF50),
-              minimumSize: const Size(double.infinity, 48),
-            ),
-            child: const Text('Back to Store'),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        (route) => false,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                child: const Text('Back to Store'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const OrderHistoryScreen(),
+                    ),
+                  );
+                },
+                child: const Text('View Order History'),
+              ),
+            ],
           ),
         ],
       ),
@@ -467,14 +514,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.bold,
-        color: AppTheme.primary,
-      ),
-    );
+    Widget _sectionTitle(String text) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
   }
-}

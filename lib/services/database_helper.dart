@@ -6,7 +6,8 @@ import '../models/cart_item.dart';
 import '../models/category_model.dart';
 import '../models/news.dart';
 import '../models/voucher.dart';
-
+import '../models/order_history.dart';
+import '../models/order_history_item.dart';
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
@@ -53,7 +54,28 @@ class DatabaseHelper {
         FOREIGN KEY (categoryId) REFERENCES categories(id)
       )
     ''');
-
+    await db.execute('''
+CREATE TABLE orders(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  totalPrice REAL,
+  date TEXT,
+  fullName TEXT,
+  address TEXT,
+  paymentMethod TEXT,
+  cardNumber TEXT
+)
+''');
+    await db.execute('''
+    CREATE TABLE order_items(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId INTEGER,
+        bookId INTEGER,
+        title TEXT,
+        price REAL,
+        quantity INTEGER,
+        image TEXT
+    )
+    ''');
     await db.execute('''
       CREATE TABLE categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -646,7 +668,49 @@ class DatabaseHelper {
     );
     return (result.first['count'] as int?) ?? 0;
   }
+  Future<int> insertOrder({
+  required double totalPrice,
+  required String fullName,
+  required String address,
+  required String paymentMethod,
+  required String cardNumber,
+}) async {
+  final db = await database;
 
+  return await db.insert('orders', {
+    'totalPrice': totalPrice,
+    'date': DateTime.now().toString(),
+    'fullName': fullName,
+    'address': address,
+    'paymentMethod': paymentMethod,
+    'cardNumber': cardNumber,
+  });
+}
+  Future<int> insertOrderItem(OrderHistoryItem item) async {
+    final db = await database;
+    return await db.insert('order_items', item.toMap());
+  }
+  Future<List<OrderHistory>> getOrders() async {
+    final db = await database;
+
+    final result = await db.query(
+      'orders',
+      orderBy: 'date DESC',
+    );
+
+    return result.map((e) => OrderHistory.fromMap(e)).toList();
+  }
+  Future<List<OrderHistoryItem>> getOrderItems(int orderId) async {
+    final db = await database;
+
+    final result = await db.query(
+      'order_items',
+      where: 'orderId = ?',
+      whereArgs: [orderId],
+    );
+
+    return result.map((e) => OrderHistoryItem.fromMap(e)).toList();
+  }
   Future<void> deleteDatabaseFile() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'bookstore.db');
