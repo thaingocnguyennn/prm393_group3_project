@@ -6,7 +6,8 @@ import '../providers/news_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'add_edit_book_screen.dart' show isLocalImagePath;
-import 'add_edit_news_screen.dart';
+import 'add_news_screen.dart';
+import 'edit_news_screen.dart';
 import 'news_detail_screen.dart';
 
 class NewsListScreen extends StatefulWidget {
@@ -28,14 +29,14 @@ class _NewsListScreenState extends State<NewsListScreen> {
   Future<void> _goToCreate() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AddEditNewsScreen()),
+      MaterialPageRoute(builder: (_) => const AddNewsScreen()),
     );
   }
 
   Future<void> _goToEdit(News item) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => AddEditNewsScreen(news: item)),
+      MaterialPageRoute(builder: (_) => EditNewsScreen(news: item)),
     );
   }
 
