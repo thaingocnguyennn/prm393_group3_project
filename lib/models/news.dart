@@ -1,10 +1,12 @@
 class News {
+  //Các thuộc tính
   final int? id;
   final String title;
   final String description;
   final String image;
   final DateTime? createdAt;
 
+  //Constructor
   News({
     this.id,
     required this.title,
@@ -13,6 +15,7 @@ class News {
     this.createdAt,
   });
 
+  //toMap() – convert sang Map (để lưu DB)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -23,6 +26,7 @@ class News {
     };
   }
 
+  //fromMap() – convert từ DB → object
   factory News.fromMap(Map<String, dynamic> map) {
     return News(
       id: map['id'] as int?,

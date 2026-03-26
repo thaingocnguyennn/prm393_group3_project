@@ -25,6 +25,7 @@ class _NewsListScreenState extends State<NewsListScreen> {
     });
   }
 
+  // Mở màn hình thêm tin mới
   Future<void> _goToCreate() async {
     await Navigator.push(
       context,
@@ -32,6 +33,7 @@ class _NewsListScreenState extends State<NewsListScreen> {
     );
   }
 
+  // Mở màn hình edit và truyền dữ liệu tin hiện tại
   Future<void> _goToEdit(News item) async {
     await Navigator.push(
       context,
@@ -39,6 +41,7 @@ class _NewsListScreenState extends State<NewsListScreen> {
     );
   }
 
+  // Hiển thị dialog xác nhận trước khi xóa
   Future<void> _delete(News item) async {
     final confirmed = await ConfirmDialog.show(
       context,

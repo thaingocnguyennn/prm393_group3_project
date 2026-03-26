@@ -505,6 +505,9 @@ class DatabaseHelper {
 
   // ─── NEWS OPERATIONS ──────────────────────────────────────────────────────
 
+  // Lấy toàn bộ danh sách tin tức
+// Sắp xếp: tin mới nhất lên đầu (dựa vào createdAt giảm dần)
+// Nếu cùng thời gian thì sắp xếp theo id giảm dần
   Future<List<News>> getAllNews() async {
     final db = await database;
     final maps = await db.rawQuery('''
@@ -514,6 +517,8 @@ class DatabaseHelper {
     return maps.map((m) => News.fromMap(m)).toList();
   }
 
+  // Lấy 1 tin mới nhất (tin đầu tiên)
+// Sắp xếp giống getAllNews nhưng chỉ lấy 1 record
   Future<News?> getNewestNews() async {
     final db = await database;
     final maps = await db.rawQuery('''
@@ -521,23 +526,32 @@ class DatabaseHelper {
       ORDER BY datetime(createdAt) DESC, id DESC
       LIMIT 1
     ''');
+    // Nếu không có dữ liệu thì trả về null
     if (maps.isEmpty) return null;
     return News.fromMap(maps.first);
   }
 
+  // Lấy 1 tin theo id
+// Dùng khi xem chi tiết tin
   Future<News?> getNewsById(int id) async {
     final db = await database;
     final maps = await db.query('news', where: 'id = ?', whereArgs: [id]);
+    // Không tìm thấy → null
     if (maps.isEmpty) return null;
     return News.fromMap(maps.first);
   }
 
+  // Thêm tin mới vào database
+// Không cần truyền id (auto tăng)
+// Không cần createdAt (DB tự set thời gian hiện tại)
   Future<int> insertNews(News news) async {
     final db = await database;
     final map = news.toMap()..remove('id')..remove('createdAt');
     return await db.insert('news', map);
   }
 
+  // Cập nhật tin
+// Không update createdAt (giữ nguyên thời gian tạo ban đầu)
   Future<int> updateNews(News news) async {
     final db = await database;
     final map = news.toMap()..remove('createdAt');
@@ -549,6 +563,7 @@ class DatabaseHelper {
     );
   }
 
+  // Xóa tin theo id
   Future<int> deleteNews(int id) async {
     final db = await database;
     return await db.delete('news', where: 'id = ?', whereArgs: [id]);
